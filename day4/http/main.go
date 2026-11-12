@@ -6,7 +6,9 @@ import (
     "encoding/json"
     "go-learning/model"
     "log"
+    "strings"
 )
+
 
 
 //функция, которая будет обрабатывать запрос браузера
@@ -21,12 +23,15 @@ func helloHandler(w http.ResponseWriter, r *http.Request) {
 
 //ctrl+c завершает сервер в терминале
 
+//Первая функция — получение пользователя
 func personHandler(w http.ResponseWriter, r *http.Request) {
     if r.Method != http.MethodGet {
     http.Error(w, "Метод не поддерживается", http.StatusMethodNotAllowed)
     return
 }
 //Если запрос пришёл не методом GET — отправить ошибку 405 и выйти из обработчика.
+//r.Method — метод запроса, который пришёл от клиента
+//http.MethodGet — константа, обозначающая метод GET.
 
     id := r.URL.Query().Get("id")
 
@@ -83,11 +88,60 @@ func personHandler(w http.ResponseWriter, r *http.Request) {
     //fmt.Fprintln(w, string(data))
 
 
+    //POST функция создания пользователя
+
+    func createPersonHandler( w http.ResponseWriter, r *http.Request){
+        if r.Method != http.MethodPost {
+            http.Error (w, "Метод не поддерживается", http.StatusMethodNotAllowed)
+            return
+        }
+
+        var person model.Person
+
+        err := json.NewDecoder(r.Body).Decode(&person)
+        //r.body Получает тело HTTP-запроса
+        //json.NewDecoder Создаёт инструмент для чтения JSON
+        //.decode преобразует json в person 
+        //JSON читается непосредственно из HTTP-запроса И снова используется &person, 
+        // потому что мы хотим заполнить нашу переменную person.
+
+        if err != nil {
+            http.Error (w, "Некорректный Json", http.StatusBadRequest)
+            return
+        }
+
+        if strings.TrimSpace(person.Name) == "" {
+            http.Error(w, "Ваше Имя обязательно", http.StatusBadRequest)
+            return
+        }
+        //strings.TrimSpace() убирает пробелы в начале и конце строки.
+        //== "" проверяет, осталась ли строка пустой.
+        // http.StatusBadRequest — статус 400: клиент отправил некорректные данные.
+
+        if person.Age < 0 {
+            http.Error (w, "Возраст не может быть отрицательным", http.StatusBadRequest)
+            return
+        }
+    
+        data,err := json.Marshal(person)
+        
+        if err != nil {
+            http.Error(w, "Внутренняя ошибка сервера", http.StatusInternalServerError)
+        return 
+        }
+        w.Header().Set("Content-Type", "application/json; charset=utf-8")
+        w.Write(data)
+        //json.NewEncoder(w).Encode(person)
+        //Он сразу преобразует person в JSON и записывает его в HTTP-ответ
+    }
+
 func main() {
     http.HandleFunc("/", helloHandler)
 	//«Когда кто-нибудь обратится к /, запусти helloHandler
 
     http.HandleFunc("/person", personHandler)
+    
+    http.HandleFunc("/people", createPersonHandler)
 
     fmt.Println("Сервер запущен на http://localhost:8080")
 
